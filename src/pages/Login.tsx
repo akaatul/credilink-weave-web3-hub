@@ -1,49 +1,38 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Shield, Wallet, Mail, Lock, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { Shield, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth, UserRole } from "@/contexts/AuthContext";
+import RoleSelector from "@/components/RoleSelector";
+import AuthMethods from "@/components/AuthMethods";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const { toast } = useToast();
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const { login, loginWithOAuth, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const handleRoleSelect = (role: UserRole) => {
+    setSelectedRole(role);
+  };
 
   const handleMetaMaskLogin = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        toast({
-          title: "Success!",
-          description: "Connected to MetaMask successfully.",
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to connect to MetaMask. Please try again.",
-          variant: "destructive",
-        });
-      }
-    } else {
-      toast({
-        title: "MetaMask Not Found",
-        description: "Please install MetaMask to continue with Web3 authentication.",
-        variant: "destructive",
-      });
+    if (selectedRole) {
+      await login(selectedRole);
+      navigate('/profile');
     }
   };
 
-  const handleEmailLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({
-      title: "Login Attempt",
-      description: "Email login functionality will be implemented soon.",
-    });
+  const handleOAuthLogin = async (provider: 'google' | 'github') => {
+    if (selectedRole) {
+      await loginWithOAuth(provider, selectedRole);
+      navigate('/profile');
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedRole(null);
   };
 
   return (
@@ -76,80 +65,33 @@ const Login = () => {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Button
-                onClick={handleMetaMaskLogin}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 rounded-xl"
-                size="lg"
-              >
-                <Wallet className="mr-3 h-5 w-5" />
-                Connect with MetaMask
-              </Button>
-            </motion.div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">Or continue with email</span>
-              </div>
-            </div>
-
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 py-3 rounded-xl border-gray-300 focus:border-blue-500"
-                    required
-                  />
+            {!selectedRole ? (
+              <RoleSelector
+                onRoleSelect={handleRoleSelect}
+                title="Choose Your Role"
+                description="Select how you want to access CrediLink+"
+              />
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <button onClick={handleBack} className="text-gray-500 hover:text-gray-700">
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Logging in as {selectedRole}
+                  </span>
                 </div>
+                
+                <AuthMethods
+                  onMetaMaskAuth={handleMetaMaskLogin}
+                  onOAuthAuth={handleOAuthLogin}
+                  isLoading={isLoading}
+                  role={selectedRole}
+                />
               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-700">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 py-3 rounded-xl border-gray-300 focus:border-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl"
-                  size="lg"
-                >
-                  Sign In
-                </Button>
-              </motion.div>
-            </form>
-
-            <div className="text-center space-y-2">
-              <a href="#" className="text-blue-600 hover:text-blue-700 text-sm">
-                Forgot your password?
-              </a>
+            <div className="text-center">
               <p className="text-gray-600 text-sm">
                 Don't have an account?{" "}
                 <Link to="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
