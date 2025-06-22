@@ -17,9 +17,9 @@ const Login = () => {
     setSelectedRole(role);
   };
 
-  const handleMetaMaskLogin = async () => {
+  const handleWalletLogin = async (walletId: string) => {
     if (selectedRole) {
-      await login(selectedRole);
+      await login(walletId, selectedRole);
       navigate('/profile');
     }
   };
@@ -60,7 +60,7 @@ const Login = () => {
             </motion.div>
             <CardTitle className="text-3xl font-bold">Welcome Back</CardTitle>
             <CardDescription className="text-gray-600">
-              Sign in to your CrediLink+ account
+              Sign in to your CrediLink+ account with Web3 or traditional login
             </CardDescription>
           </CardHeader>
 
@@ -83,7 +83,7 @@ const Login = () => {
                 </div>
                 
                 <AuthMethods
-                  onMetaMaskAuth={handleMetaMaskLogin}
+                  onWalletConnect={handleWalletLogin}
                   onOAuthAuth={handleOAuthLogin}
                   isLoading={isLoading}
                   role={selectedRole}

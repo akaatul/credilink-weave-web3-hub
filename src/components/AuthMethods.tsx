@@ -1,35 +1,30 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Wallet, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { UserRole } from "@/contexts/AuthContext";
+import WalletConnector from "./WalletConnector";
 
 interface AuthMethodsProps {
-  onMetaMaskAuth: () => void;
+  onWalletConnect: (walletId: string) => void;
   onOAuthAuth: (provider: 'google' | 'github') => void;
   isLoading: boolean;
   role: UserRole;
 }
 
 const AuthMethods: React.FC<AuthMethodsProps> = ({ 
-  onMetaMaskAuth, 
+  onWalletConnect, 
   onOAuthAuth, 
   isLoading, 
   role 
 }) => {
   return (
-    <div className="space-y-4">
-      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-        <Button
-          onClick={onMetaMaskAuth}
-          disabled={isLoading}
-          className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 rounded-xl"
-          size="lg"
-        >
-          <Wallet className="mr-3 h-5 w-5" />
-          {isLoading ? 'Connecting...' : 'Connect with MetaMask'}
-        </Button>
-      </motion.div>
+    <div className="space-y-6">
+      <WalletConnector
+        onWalletSelect={onWalletConnect}
+        isLoading={isLoading}
+        role={role}
+      />
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">

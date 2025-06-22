@@ -17,9 +17,9 @@ const Signup = () => {
     setSelectedRole(role);
   };
 
-  const handleMetaMaskSignup = async () => {
+  const handleWalletSignup = async (walletId: string) => {
     if (selectedRole) {
-      await login(selectedRole);
+      await login(walletId, selectedRole);
       navigate('/profile');
     }
   };
@@ -60,7 +60,7 @@ const Signup = () => {
             </motion.div>
             <CardTitle className="text-3xl font-bold">Join CrediLink+</CardTitle>
             <CardDescription className="text-gray-600">
-              Start your journey with blockchain-verified learning
+              Start your Web3 learning journey with blockchain-verified credentials
             </CardDescription>
           </CardHeader>
 
@@ -83,7 +83,7 @@ const Signup = () => {
                 </div>
                 
                 <AuthMethods
-                  onMetaMaskAuth={handleMetaMaskSignup}
+                  onWalletConnect={handleWalletSignup}
                   onOAuthAuth={handleOAuthSignup}
                   isLoading={isLoading}
                   role={selectedRole}

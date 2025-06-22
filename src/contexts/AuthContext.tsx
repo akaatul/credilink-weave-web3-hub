@@ -1,12 +1,14 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { reverseResolveENS, formatAddress } from '@/utils/ensUtils';
 
 export type UserRole = 'student' | 'recruiter';
 
 export interface User {
   id: string;
   address: string;
+  ensName?: string;
   email?: string;
   name: string;
   role: UserRole;
@@ -17,15 +19,18 @@ export interface User {
   experience?: string; // for students
   isVerified: boolean;
   createdAt: Date;
+  walletType?: string; // track which wallet was used
+  chainId?: number; // track current chain
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (role: UserRole) => Promise<void>;
+  login: (walletId: string, role: UserRole) => Promise<void>;
   loginWithOAuth: (provider: 'google' | 'github', role: UserRole) => Promise<void>;
   logout: () => void;
   updateProfile: (updates: Partial<User>) => void;
+  switchChain: (chainId: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,39 +56,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const connectMetaMask = async (): Promise<string> => {
+  const connectWallet = async (walletId: string): Promise<{ address: string; chainId: number }> => {
     if (typeof window.ethereum === 'undefined') {
-      throw new Error('MetaMask is not installed');
+      throw new Error('No Web3 wallet detected. Please install MetaMask or another Web3 wallet.');
     }
 
     try {
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      }) as string[];
+      let accounts: string[];
+      
+      switch (walletId) {
+        case 'metamask':
+          if (!window.ethereum.isMetaMask) {
+            throw new Error('MetaMask not detected');
+          }
+          accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          }) as string[];
+          break;
+          
+        case 'walletconnect':
+          // TODO: Implement WalletConnect integration
+          // This would use the @web3modal/wagmi connector
+          throw new Error('WalletConnect integration coming soon');
+          
+        case 'coinbase':
+          // TODO: Implement Coinbase Wallet integration  
+          // This would use the coinbaseWallet connector
+          throw new Error('Coinbase Wallet integration coming soon');
+          
+        default:
+          // Fallback to generic wallet connection
+          accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+          }) as string[];
+      }
       
       if (accounts.length === 0) {
         throw new Error('No accounts found');
       }
       
-      return accounts[0];
+      // Get current chain ID
+      const chainId = await window.ethereum.request({ 
+        method: 'eth_chainId' 
+      }) as string;
+      
+      return {
+        address: accounts[0],
+        chainId: parseInt(chainId, 16)
+      };
     } catch (error) {
-      throw new Error('Failed to connect to MetaMask');
+      throw new Error(`Failed to connect wallet: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const login = async (role: UserRole) => {
+  const login = async (walletId: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      const address = await connectMetaMask();
+      const { address, chainId } = await connectWallet(walletId);
+      
+      // Try to resolve ENS name
+      const ensName = await reverseResolveENS(address);
       
       // Create or get user profile
       const newUser: User = {
         id: address,
         address,
-        name: `${role === 'student' ? 'Student' : 'Recruiter'} ${address.slice(0, 6)}...${address.slice(-4)}`,
+        ensName: ensName || undefined,
+        name: ensName || `${role === 'student' ? 'Student' : 'Recruiter'} ${formatAddress(address)}`,
         role,
         isVerified: false,
         createdAt: new Date(),
+        walletType: walletId,
+        chainId,
       };
 
       setUser(newUser);
@@ -91,7 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       toast({
         title: 'Login Successful!',
-        description: `Welcome to CrediLink+ as a ${role}!`,
+        description: `Welcome to CrediLink+ as a ${role}${ensName ? ` (${ensName})` : ''}!`,
       });
     } catch (error) {
       toast({
@@ -137,6 +181,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const switchChain = async (targetChainId: number) => {
+    if (!window.ethereum || !user) return;
+    
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+      });
+      
+      // Update user's chain ID
+      const updatedUser = { ...user, chainId: targetChainId };
+      setUser(updatedUser);
+      localStorage.setItem('credilink_user', JSON.stringify(updatedUser));
+      
+      toast({
+        title: 'Chain Switched',
+        description: `Switched to chain ${targetChainId}`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Chain Switch Failed',
+        description: 'Failed to switch blockchain network',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('credilink_user');
@@ -166,6 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loginWithOAuth,
       logout,
       updateProfile,
+      switchChain,
     }}>
       {children}
     </AuthContext.Provider>
